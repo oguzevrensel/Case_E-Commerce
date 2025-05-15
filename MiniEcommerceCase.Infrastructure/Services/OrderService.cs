@@ -1,8 +1,11 @@
 ﻿using AutoMapper;
+using Azure.Core;
 using Microsoft.EntityFrameworkCore;
 using MiniEcommerceCase.Application.DTOs.Requests.Order;
 using MiniEcommerceCase.Application.DTOs.Responses.Order;
+using MiniEcommerceCase.Application.Events;
 using MiniEcommerceCase.Application.Interfaces;
+using MiniEcommerceCase.Application.Interfaces.Messaging;
 using MiniEcommerceCase.Domain.Entities;
 using MiniEcommerceCase.Infrastructure.Context;
 
@@ -10,9 +13,11 @@ namespace MiniEcommerceCase.Infrastructure.Services
 {
     public class OrderService : BaseService<Order, CreateOrderRequestDto, CreateOrderResponseDto>, IOrderService
     {
-        public OrderService(AppDbContext context, IMapper mapper)
+        private readonly IEventPublisher _eventPublisher;
+        public OrderService(AppDbContext context, IMapper mapper, IEventPublisher eventPublisher)
         : base(context, mapper)
         {
+            _eventPublisher = eventPublisher;
         }
 
         public async Task<List<OrderListItemDto>> GetOrdersByUserIdAsync(Guid userId)
@@ -26,7 +31,22 @@ namespace MiniEcommerceCase.Infrastructure.Services
 
         public async Task<CreateOrderResponseDto> CreateOrderAsync(CreateOrderRequestDto order)
         {
-            return await CreateAsync(order); 
+            var response = await CreateAsync(order);
+
+            var orderEvent = new OrderPlacedEvent
+            {
+                OrderId = response.OrderId,
+                UserId = order.UserId,
+                ProductId = order.ProductId,
+                Quantity = order.Quantity,
+                PaymentMethod = order.PaymentMethod,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _eventPublisher.PublishOrderPlacedAsync(orderEvent);
+
+            return response;
+
         }
     }
 }

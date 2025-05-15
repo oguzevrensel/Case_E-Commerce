@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MiniEcommerceCase.Application;
+using MiniEcommerceCase.Infrastructure;
 using MiniEcommerceCase.Infrastructure.Context;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,7 @@ builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddInfrastructureServices();
 
 builder.Services.AddSwaggerGen();
 
