@@ -3,7 +3,7 @@ namespace MiniEcommerceCase.Application.DTOs.Responses.Order
 {
     public class CreateOrderResponseDto
     {
-        public Guid OrderId { get; set; }
+        public Guid Id { get; set; }
         public string Status { get; set; }
     }
 }

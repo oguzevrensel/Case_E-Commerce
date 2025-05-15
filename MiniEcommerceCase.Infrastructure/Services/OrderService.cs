@@ -35,7 +35,7 @@ namespace MiniEcommerceCase.Infrastructure.Services
 
             var orderEvent = new OrderPlacedEvent
             {
-                OrderId = response.OrderId,
+                OrderId = response.Id,
                 UserId = order.UserId,
                 ProductId = order.ProductId,
                 Quantity = order.Quantity,
