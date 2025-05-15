@@ -1,7 +1,11 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using MiniEcommerceCase.Application;
 using MiniEcommerceCase.Infrastructure;
 using MiniEcommerceCase.Infrastructure.Context;
+using Serilog;
+using Serilog.Sinks.MSSqlServer;
+using static Serilog.Sinks.MSSqlServer.ColumnOptions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +19,31 @@ builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+var columnOptions = new ColumnOptions
+{
+    AdditionalColumns = new List<SqlColumn>
+    {
+        new SqlColumn { ColumnName = "CorrelationId", DataType = SqlDbType.NVarChar, DataLength = 100 },
+        new SqlColumn { ColumnName = "UserName", DataType = SqlDbType.NVarChar, DataLength = 100 }
+    }
+}; 
+
+Log.Logger = new LoggerConfiguration()
+    .Enrich.FromLogContext()
+    .WriteTo.MSSqlServer(
+        connectionString: builder.Configuration.GetConnectionString("DefaultConnection"),
+        sinkOptions: new MSSqlServerSinkOptions
+        {
+            TableName = "Logs",
+            AutoCreateSqlTable = true
+        },
+        columnOptions: columnOptions
+    )
+    .CreateLogger();
+
+
+builder.Host.UseSerilog();
 
 builder.Services.AddInfrastructureServices();
 
