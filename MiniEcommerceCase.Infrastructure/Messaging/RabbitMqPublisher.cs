@@ -22,7 +22,9 @@ namespace MiniEcommerceCase.Infrastructure.Messaging
             {
                 var factory = new ConnectionFactory
                 {
-                    HostName = _configuration["RabbitMq:Host"] ?? "localhost"
+                    HostName = _configuration["RabbitMq:Host"],
+                    UserName = _configuration["RabbitMq:Username"],
+                    Password = _configuration["RabbitMq:Password"]
                 };
 
                 using var connection = factory.CreateConnection();
