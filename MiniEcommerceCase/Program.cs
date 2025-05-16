@@ -1,11 +1,12 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using MiniEcommerceCase.Application;
+using MiniEcommerceCase.Application.Interfaces;
 using MiniEcommerceCase.Infrastructure;
 using MiniEcommerceCase.Infrastructure.Context;
+using MiniEcommerceCase.Infrastructure.Services;
 using Serilog;
 using Serilog.Sinks.MSSqlServer;
-using static Serilog.Sinks.MSSqlServer.ColumnOptions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
+
+builder.Services.AddSingleton<IRedisCacheService, RedisCacheService>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));

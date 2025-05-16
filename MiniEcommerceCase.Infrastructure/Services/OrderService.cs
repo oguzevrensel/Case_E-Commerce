@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using Azure.Core;
 using Microsoft.EntityFrameworkCore;
 using MiniEcommerceCase.Application.DTOs.Requests.Order;
 using MiniEcommerceCase.Application.DTOs.Responses.Order;
@@ -14,19 +13,27 @@ namespace MiniEcommerceCase.Infrastructure.Services
     public class OrderService : BaseService<Order, CreateOrderRequestDto, CreateOrderResponseDto>, IOrderService
     {
         private readonly IEventPublisher _eventPublisher;
-        public OrderService(AppDbContext context, IMapper mapper, IEventPublisher eventPublisher)
+        private readonly IRedisCacheService _cacheService;
+        public OrderService(AppDbContext context, IMapper mapper, IEventPublisher eventPublisher, IRedisCacheService cacheService)
         : base(context, mapper)
         {
             _eventPublisher = eventPublisher;
+            _cacheService = cacheService;
         }
 
         public async Task<List<OrderListItemDto>> GetOrdersByUserIdAsync(Guid userId)
         {
-            var orders = await _dbSet
-                .Where(o => o.UserId == userId)
-                .ToListAsync();
+            string cacheKey = $"orders:user:{userId}";
+            var cached = await _cacheService.GetAsync<List<OrderListItemDto>>(cacheKey);
 
-            return _mapper.Map<List<OrderListItemDto>>(orders);
+            if (cached is not null)
+                return cached;
+
+            var orders = await _dbSet.Where(o => o.UserId == userId).ToListAsync();
+            var mapped = _mapper.Map<List<OrderListItemDto>>(orders);
+
+            await _cacheService.SetAsync(cacheKey, mapped, TimeSpan.FromMinutes(2)); 
+            return mapped;
         }
 
         public async Task<CreateOrderResponseDto> CreateOrderAsync(CreateOrderRequestDto order)
@@ -44,6 +51,8 @@ namespace MiniEcommerceCase.Infrastructure.Services
             };
 
             await _eventPublisher.PublishOrderPlacedAsync(orderEvent);
+
+            await _cacheService.RemoveAsync($"orders:user:{order.UserId}");
 
             return response;
 
