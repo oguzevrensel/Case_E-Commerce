@@ -5,6 +5,7 @@ using MiniEcommerceCase.Application.Interfaces;
 using MiniEcommerceCase.Infrastructure;
 using MiniEcommerceCase.Infrastructure.Context;
 using MiniEcommerceCase.Infrastructure.Services;
+using MiniEcommerceCase.Middlewares;
 using Serilog;
 using Serilog.Sinks.MSSqlServer;
 
@@ -62,6 +63,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseAuthorization();
 
