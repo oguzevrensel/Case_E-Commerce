@@ -26,56 +26,78 @@ namespace MiniEcommerceCase.Infrastructure.Services
 
         public async Task<List<OrderListItemDto>> GetOrdersByUserIdAsync(Guid userId)
         {
-            _logger.LogInformation("GetOrdersByUserIdAsync called for UserId: {UserId}", userId);
+            _logger.LogInformation("[OrderService] GetOrdersByUserIdAsync started for UserId: {UserId}", userId);
 
-            string cacheKey = $"orders:user:{userId}";
-            var cached = await _cacheService.GetAsync<List<OrderListItemDto>>(cacheKey);
-
-            if (cached is not null)
+            try
             {
-                _logger.LogInformation("Cache hit for key: {CacheKey}", cacheKey);
-                return cached;
+                string cacheKey = $"orders:user:{userId}";
+                var cached = await _cacheService.GetAsync<List<OrderListItemDto>>(cacheKey);
+
+                if (cached is not null)
+                {
+                    _logger.LogInformation("Cache hit for user {UserId} (key: {CacheKey})", userId, cacheKey);
+                    return cached;
+                }
+
+                _logger.LogInformation("Cache miss for user {UserId}, fetching from DB...", userId);
+
+                var orders = await _dbSet.Where(o => o.UserId == userId).ToListAsync();
+                var mapped = _mapper.Map<List<OrderListItemDto>>(orders);
+
+                await _cacheService.SetAsync(cacheKey, mapped, TimeSpan.FromMinutes(2));
+                _logger.LogInformation("Cached fresh result for user {UserId} (key: {CacheKey})", userId, cacheKey);
+
+                return mapped;
             }
-            _logger.LogInformation("Cache miss for key: {CacheKey}", cacheKey);
-
-
-            var orders = await _dbSet.Where(o => o.UserId == userId).ToListAsync();
-            var mapped = _mapper.Map<List<OrderListItemDto>>(orders);
-
-            await _cacheService.SetAsync(cacheKey, mapped, TimeSpan.FromMinutes(2));
-
-            _logger.LogInformation("Cached fresh result for key: {CacheKey}", cacheKey);
-
-            return mapped;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred in GetOrdersByUserIdAsync for UserId: {UserId}", userId);
+                throw;
+            }
+            finally
+            {
+                _logger.LogInformation("GetOrdersByUserIdAsync finished for UserId: {UserId}", userId);
+            }
         }
 
         public async Task<CreateOrderResponseDto> CreateOrderAsync(CreateOrderRequestDto order)
         {
 
-            var response = await CreateAsync(order);
+            _logger.LogInformation("[OrderService] CreateOrderAsync started for UserId: {UserId}, ProductId: {ProductId}, Quantity: {Quantity}",
+        order.UserId, order.ProductId, order.Quantity);
 
-            _logger.LogInformation("Order created with ID: {OrderId}", response.Id);
-
-
-            var orderEvent = new OrderPlacedEvent
+            try
             {
-                OrderId = response.Id,
-                UserId = order.UserId,
-                ProductId = order.ProductId,
-                Quantity = order.Quantity,
-                PaymentMethod = order.PaymentMethod,
-                CreatedAt = DateTime.UtcNow
-            };
+                var response = await CreateAsync(order);
+                _logger.LogInformation("Order successfully created with ID: {OrderId}", response.Id);
 
-            await _eventPublisher.PublishOrderPlacedAsync(orderEvent);
-            _logger.LogInformation("Published OrderPlacedEvent for OrderId: {OrderId}", response.Id);
+                var orderEvent = new OrderPlacedEvent
+                {
+                    OrderId = response.Id,
+                    UserId = order.UserId,
+                    ProductId = order.ProductId,
+                    Quantity = order.Quantity,
+                    PaymentMethod = order.PaymentMethod,
+                    CreatedAt = DateTime.UtcNow
+                };
 
+                await _eventPublisher.PublishOrderPlacedAsync(orderEvent);
+                _logger.LogInformation("Published OrderPlacedEvent for OrderId: {OrderId}", response.Id);
 
-            await _cacheService.RemoveAsync($"orders:user:{order.UserId}");
-            _logger.LogInformation("Invalidated cache for userId: {UserId}", order.UserId);
+                await _cacheService.RemoveAsync($"orders:user:{order.UserId}");
+                _logger.LogInformation("Cache invalidated for userId: {UserId}", order.UserId);
 
-
-            return response;
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while creating order for user {UserId}", order.UserId);
+                throw;
+            }
+            finally
+            {
+                _logger.LogInformation("[OrderService] CreateOrderAsync finished for UserId: {UserId}", order.UserId);
+            }
 
         }
     }

@@ -1,11 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using MiniEcommerceCase.Application.DTOs.Requests.Order;
 using MiniEcommerceCase.Application.Interfaces;
 
 
 namespace MiniEcommerceCase.Controllers
 {
-
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class OrderController : ControllerBase
